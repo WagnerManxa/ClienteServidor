@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Competencia extends Model
 {
     use HasFactory;
-    protected $fillable = ['nome',];
+    protected $fillable = ['nome'];
 
     public $timestamps = false;
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Empresa;
+use App\Models\Vaga;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
@@ -105,25 +106,47 @@ class EmpresaController extends Controller
      */
     public function update(Request $request)
     {
-        $idFromToken = (Cache::get(TOKEN_CACHE_PREFIX . ($request->bearerToken())))['id'];
-        if (!$idFromToken){
-
+        $token = $request->bearerToken();
+        $idFromToken = Cache::get(TOKEN_CACHE_PREFIX . $token);
+        if (!$idFromToken) {
+            return response()->json(['mensagem' => 'Token inválido'], 401);
         }
         $empresa = Empresa::findOrFail($idFromToken);
+        if (!$empresa) {
+            return response()->json(['mensagem' => 'Empresa nao encontrada'], 404);
+        }
 
         try {
             $request->validate([
                 'nome' => 'required|string',
-                'email' => 'required|email|unique:empresas,email,' . $idFromToken . '|unique:usuarios,email',
-                'senha' => 'required|string|min:8',
+                'email' => 'required|email',
+                'senha' => 'nullable|string|min:8',
                 'ramo' => 'required|string',
                 'descricao' => 'required|string',
             ]);
+            if ($request->has('nome')) {
+                $empresa->nome = $request->nome;
+            }
 
-            $empresa->update($request->all());
+            if ($request->has('email')) {
+                $empresa->email = $request->email;
+            }
+
+            if ($request->has('senha')) {
+                $empresa->senha = Hash::make($request->senha);
+            }
+            if ($request->has('descricao')) {
+                $empresa->descricao = $request->descricao;
+            }
+            if ($request->has('ramo')) {
+                $empresa->ramo = $request->ramo;
+            }
+
+            $empresa->save();
 
             return response()->json($empresa, 200);
         } catch (ValidationException $e) {
+
             $errors = $e->errors();
             $errorMessages = [];
 
@@ -135,6 +158,7 @@ class EmpresaController extends Controller
 
             return response()->json(['mensagem' => $errorMessages], 422);
         } catch (\Exception $e) {
+            info($e);
             return response()->json(['mensagem' => 'Erro interno do servidor'], 500);
         }
     }
@@ -167,6 +191,48 @@ class EmpresaController extends Controller
         } catch (\Exception $e) {
             return response()->json(['mensagem' => 'Erro interno do servidor: '.$e->getMessage()], 500);
         }
+    }
+
+    // VAGAS////////////////////
+
+    /**
+     * Mostra as vagas da empresa.
+     */
+    public function vagas($empresaId)
+    {
+        $empresa = Empresa::findOrFail($empresaId);
+        if (!$empresa) {
+            return response()->json(['mensagem' => 'Empresa não encontrada'], 404);
+        }
+
+        $vagas = Vaga::where('empresa_id', $empresaId)->get();
+
+        return response()->json(['vagas' => $vagas], 200);
+    }
+
+    /**
+     * Cria uma nova vaga para a empresa.
+     */
+    public function criarVaga(Request $request, $empresaId)
+    {
+        $empresa = Empresa::findOrFail($empresaId);
+        if (!$empresa) {
+            return response()->json(['mensagem' => 'Empresa não encontrada'], 404);
+        }
+
+        $request->validate([
+            'titulo' => 'required|string',
+            'descricao' => 'required|string',
+        ]);
+
+        $vaga = new Vaga();
+        $vaga->titulo = $request->titulo;
+        $vaga->descricao = $request->descricao;
+        $vaga->empresa_id = $empresaId;
+
+        $vaga->save();
+
+        return response()->json(['mensagem' => 'Vaga criada com sucesso', 'vaga' => $vaga], 200);
     }
 
 }

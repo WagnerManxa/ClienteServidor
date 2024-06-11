@@ -113,6 +113,14 @@ public function show(Request $request)
         public function update(Request $request)
     {
         try {
+            $token = $request->bearerToken();
+            $userIdFromToken = Cache::get(TOKEN_CACHE_PREFIX . $token);
+
+            if (!$userIdFromToken) {
+                return response()->json(['mensagem' => 'Token inválido'], 401);
+            }
+            $usuario = Usuario::find($userIdFromToken['id']);
+
             $request->validate([
                 'nome' => 'required|string',
                 'email' => 'required|email',
@@ -127,14 +135,9 @@ public function show(Request $request)
                 'experiencias.*.descricao' => 'nullable|string'
             ]);
 
-            $token = $request->bearerToken();
-            $userIdFromToken = Cache::get(TOKEN_CACHE_PREFIX . $token);
 
-            if (!$userIdFromToken) {
-                return response()->json(['mensagem' => 'Token inválido'], 401);
-            }
 
-            $usuario = Usuario::find($userIdFromToken['id']);
+
 
 
             if (!$usuario) {
@@ -184,10 +187,11 @@ public function show(Request $request)
                     $errorMessages[] = ['field' => $field, 'mensagem' => $message];
                 }
             }
-
-            return response()->json(['mensagem' => $errorMessages], 422);
-        } catch (\Exception $e) {
             info($e);
+            return response()->json(['mensagem' => $errorMessages ], 422);
+
+        } catch (\Exception $e) {
+            //info($e);
             return response()->json(['mensagem' => 'Erro interno do servidor'], 500);
         }
     }

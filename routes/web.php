@@ -6,8 +6,8 @@ use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\EmpresaController;
 use App\Http\Controllers\ExperienciaController;
 use App\Http\Controllers\UsuarioController;
-use App\Http\Middleware\AuthenticateMiddleware;
-use App\Models\Experiencia;
+use App\Http\Controllers\RamoController;
+use App\Http\Controllers\VagaController;
 
 define('TOKEN_CACHE_PREFIX', 'token_');
 
@@ -32,8 +32,22 @@ Route::middleware('custom.auth')->group(function () {
         }
     });
     Route::delete('/usuario', [UsuarioController::class, 'destroy']);
+    Route::post('/vagas', [VagaController::class, 'store']);
+    Route::put('/vagas/{id}', [VagaController::class, 'update']);
+    Route::delete('/vagas/{id}', [VagaController::class, 'destroy']);
+    Route::get('/vagas/{id}', [VagaController::class, 'show']);
+    Route::get('/vagas', [VagaController::class, 'index']);
+    Route::get('/ramos', [RamoController::class, 'index']);
+
 
 });
+
+
+Route::get('/ramos', [RamoController::class, 'index']);
+Route::post('/ramos', [RamoController::class, 'store']);
+
+
+
 Route::post('/usuarios/empresa', [EmpresaController::class, 'store']);
 Route::post('/usuarios/candidatos', [UsuarioController::class, 'store']);
 Route::post('/login', [AuthenticationController::class, 'login']);
