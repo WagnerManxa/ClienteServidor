@@ -35,8 +35,14 @@ class AuthenticationController extends Controller
                 return response()->json(['mensagem' => 'Credenciais inválidas'], 401);
             }
 
-            $isEmpresa = ($usuario instanceof Empresa);
+            if($usuario instanceof Empresa){
+                $isEmpresa = 1;
+            }
+            if($usuario instanceof Usuario){
+                $isEmpresa = 0;
+            }
 
+            info($isEmpresa);
             $token = Str::random(60);
             $userData = ['id' => $usuario->id, 'isEmpresa' => $isEmpresa];
             Cache::put(TOKEN_CACHE_PREFIX . $token, $userData, now()->addHours(24));
@@ -71,7 +77,7 @@ class AuthenticationController extends Controller
         }
     }
 
-    public function listarTokens()
+      public function listarTokens()
     {
         try {
             $activeTokens = [];
@@ -84,7 +90,22 @@ class AuthenticationController extends Controller
                         $userData = unserialize($item->value);
                         $userId = $userData['id'];
                         $isEmpresa = $userData['isEmpresa'] ? 'true' : 'false';
-                        $activeTokens[] = ['token' => Str::after($item->key, TOKEN_CACHE_PREFIX), 'user_id' => $userId, 'isEmpresa' => $isEmpresa];
+
+                        // Buscar o nome do usuário ou empresa
+                        if ($isEmpresa === 'true') {
+                            $usuario = Empresa::find($userId);
+                        } else {
+                            $usuario = Usuario::find($userId);
+                        }
+
+                        $nome = $usuario ? $usuario->nome : 'N/A';
+
+                        $activeTokens[] = [
+                            'token' => Str::after($item->key, TOKEN_CACHE_PREFIX),
+                            'user_id' => $userId,
+                            'isEmpresa' => $isEmpresa,
+                            'nome' => $nome
+                        ];
                     }
                 }
             }

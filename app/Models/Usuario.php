@@ -26,6 +26,11 @@ class Usuario extends Model
         return $this->hasMany(Experiencia::class, 'id_candidato', 'id');
     }
 
+    public function mensagems()
+    {
+        return $this->belongsToMany(Mensagem::class, 'id_candidato', 'id');
+    }
+
     protected static function boot()
     {
         parent::boot();

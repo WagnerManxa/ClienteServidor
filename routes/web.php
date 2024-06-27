@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\EmpresaController;
 use App\Http\Controllers\ExperienciaController;
+use App\Http\Controllers\MensagemController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\RamoController;
 use App\Http\Controllers\VagaController;
@@ -38,6 +39,9 @@ Route::middleware('custom.auth')->group(function () {
     Route::get('/vagas/{id}', [VagaController::class, 'show']);
     Route::get('/vagas', [VagaController::class, 'index']);
     Route::get('/ramos', [RamoController::class, 'index']);
+    Route::post('/usuarios/candidatos/buscar', [UsuarioController::class, 'buscarPerfil']);
+    Route::post('/mensagem', [MensagemController::class, 'store']);
+    Route::GET('/mensagem', [MensagemController::class, 'index']);
 
 
 });

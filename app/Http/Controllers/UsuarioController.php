@@ -61,48 +61,48 @@ use App\Models\Usuario;
         /**
  * Display the specified resource.
  */
-public function show(Request $request)
-{
-    try {
-        $token = $request->bearerToken();
+    public function show(Request $request)
+    {
+        try {
+            $token = $request->bearerToken();
 
-        if (!$token) {
-            return response()->json(['mensagem' => 'Token nao encontrado'], 401);
+            if (!$token) {
+                return response()->json(['mensagem' => 'Token nao encontrado'], 401);
+            }
+
+            $userIdFromToken = Cache::get(TOKEN_CACHE_PREFIX . $token);
+
+            if (!$userIdFromToken) {
+                return response()->json(['mensagem' => 'Token invalido'], 401);
+            }
+
+            $usuario = Usuario::with('competencias', 'experiencias')->where('id', $userIdFromToken)->first();
+
+            if (!$usuario) {
+                return response()->json(['mensagem' => 'Usuario nao encontrado'], 404);
+            }
+
+            $usuario->experiencias->each(function ($experiencia) {
+                $experiencia->makeHidden(['id_candidato', 'created_at', 'updated_at']);
+            });
+
+            $competencias = $usuario->competencias->map(function ($competencia) {
+                return $competencia->only('id', 'nome');
+            });
+
+            $data = [
+                'nome' => $usuario->nome,
+                'email' => $usuario->email,
+                'tipo' => 'candidato',
+                'competencias' => $competencias,
+                'experiencia' => $usuario->experiencias
+            ];
+
+            return response()->json($data, 200);
+        } catch (\Exception $e) {
+            return response()->json(['mensagem' => 'Erro interno do servidor'], 500);
         }
-
-        $userIdFromToken = Cache::get(TOKEN_CACHE_PREFIX . $token);
-
-        if (!$userIdFromToken) {
-            return response()->json(['mensagem' => 'Token invalido'], 401);
-        }
-
-        $usuario = Usuario::with('competencias', 'experiencias')->where('id', $userIdFromToken)->first();
-
-        if (!$usuario) {
-            return response()->json(['mensagem' => 'Usuario nao encontrado'], 404);
-        }
-
-        $usuario->experiencias->each(function ($experiencia) {
-            $experiencia->makeHidden(['id_candidato', 'created_at', 'updated_at']);
-        });
-
-        $competencias = $usuario->competencias->map(function ($competencia) {
-            return $competencia->only('id', 'nome');
-        });
-
-        $data = [
-            'nome' => $usuario->nome,
-            'email' => $usuario->email,
-            'tipo' => 'candidato',
-            'competencias' => $competencias,
-            'experiencia' => $usuario->experiencias
-        ];
-
-        return response()->json($data, 200);
-    } catch (\Exception $e) {
-        return response()->json(['mensagem' => 'Erro interno do servidor'], 500);
     }
-}
 
 
 
@@ -225,4 +225,79 @@ public function show(Request $request)
             return response()->json(['mensagem' => 'Erro interno do servidor: '.$e->getMessage()], 500);
         }
     }
+    /**
+     * Buscar perfis de usuário com base nas competências e experiência.
+     */
+        public function buscarPerfil(Request $request)
+    {
+        try {
+            $token = $request->bearerToken();
+
+            if (!$token) {
+                return response()->json(['mensagem' => 'Token não encontrado'], 401);
+            }
+
+            $userData = Cache::get(TOKEN_CACHE_PREFIX . $token);
+
+            if (!isset($userData['id'])) {
+                return response()->json(['mensagem' => 'Token inválido'], 401);
+            }
+
+            $request->validate([
+                'competencias' => 'required|array',
+                'competencias.*' => 'exists:competencias,id'
+            ]);
+
+            $competenciaIds = $request->competencias;
+
+            $usuarios = Usuario::whereHas('competencias', function ($query) use ($competenciaIds) {
+                $query->whereIn('competencias.id', $competenciaIds);
+            })
+            ->with(['competencias' => function ($query) {
+                $query->select('competencias.id', 'competencias.nome');
+            }, 'experiencias'])
+            ->get();
+
+            if ($usuarios->isEmpty()) {
+                return response()->json(['mensagem' => 'Nenhum usuário encontrado com os critérios especificados.'], 204);
+            }
+
+            $candidatos = $usuarios->map(function ($usuario) {
+                $competencias = $usuario->competencias->map(function ($competencia) {
+                    return $competencia->only('id', 'nome');
+                });
+
+                $experiencias = $usuario->experiencias->map(function ($experiencia) {
+                    return $experiencia->only('nome_empresa', 'inicio', 'fim', 'cargo');
+                });
+
+                return [
+                    'nome' => $usuario->nome,
+                    'email' => $usuario->email,
+                    'tipo' => 'candidato',
+                    'competencias' => $competencias,
+                    'experiencia' => $experiencias
+                ];
+            });
+
+            return response()->json(['candidatos' => $candidatos], 200);
+
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
+            $errorMessages = [];
+
+            foreach ($errors as $field => $messages) {
+                foreach ($messages as $message) {
+                    $errorMessages[] = ['field' => $field, 'mensagem' => $message];
+                }
+            }
+
+            return response()->json(['mensagem' => $errorMessages], 422);
+        } catch (\Exception $e) {
+            return response()->json(['mensagem' => 'Erro interno do servidor'], 500);
+        }
+    }
+
+
+
 }

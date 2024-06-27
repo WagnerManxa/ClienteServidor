@@ -28,7 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
             '/competencias',
             '/usuarios',
             '/vagas',
-            '/vagas/*'
+            '/vagas/*',
+            '/usuarios/candidatos/buscar',
+            '/mensagem'
         ]);
         $middleware ->api(append: [
             OnlyJsonAllowed::class,

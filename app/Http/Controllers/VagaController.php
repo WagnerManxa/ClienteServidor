@@ -10,17 +10,81 @@ use Illuminate\Support\Facades\Validator;
 class VagaController extends Controller
 {
     public function index(Request $request)
-
     {
-        $token = $request->bearerToken();
-        $idFromToken = Cache::get(TOKEN_CACHE_PREFIX . $token);
-        $vagas = Vaga::where('empresa_id',  $idFromToken['id'])->with('competencias')->get();
-        if (!$vagas->isEmpty()){
-        return response()->json($vagas);
+        if(request()->isEmpresa){
+            $token = $request->bearerToken();
+            $idFromToken = Cache::get(TOKEN_CACHE_PREFIX . $token);
+
+            $vagas = Vaga::where('empresa_id',  $idFromToken['id'])
+                        ->with(['competencias', 'ramo'])
+                        ->get();
+
+            if (!$vagas->isEmpty()) {
+                $vagas = $vagas->map(function ($vaga) {
+                    return [
+                        'id' => $vaga->id,
+                        'titulo' => $vaga->titulo,
+                        'descricao' => $vaga->descricao,
+                        'competencias' => $vaga->competencias->map(function ($competencia) {
+                            return [
+                                'id' => $competencia->id,
+                                'nome' => $competencia->nome,
+                            ];
+                        }),
+                        'experiencia' => $vaga->experiencia,
+                        'salario_min' => $vaga->salario_min,
+                        'salario_max' => $vaga->salario_max,
+                        'empresa_id' => $vaga->empresa_id,
+                        'ativo' => (bool)$vaga->ativo,
+                        'ramo' => [
+                            'id' => $vaga->ramo->id,
+                            'nome' => $vaga->ramo->nome,
+                            'descricao' => $vaga->ramo->descricao,
+                        ],
+                    ];
+                });
+
+                return response()->json($vagas);
+            } else {
+                return response()->json(['mensagem' => 'Nenhuma vaga cadastrada.'], 204);
+            }
         }else{
-            return response()->json(['menssagem' => 'Nenhuma vaga cadastrada.'], 204);
+            $vagas = Vaga::where('ativo',  true)
+            ->with(['competencias', 'ramo'])
+            ->get();
+
+            if (!$vagas->isEmpty()) {
+                $vagas = $vagas->map(function ($vaga) {
+                    return [
+                        'id' => $vaga->id,
+                        'titulo' => $vaga->titulo,
+                        'descricao' => $vaga->descricao,
+                        'competencias' => $vaga->competencias->map(function ($competencia) {
+                            return [
+                                'id' => $competencia->id,
+                                'nome' => $competencia->nome,
+                            ];
+                        }),
+                        'experiencia' => $vaga->experiencia,
+                        'salario_min' => $vaga->salario_min,
+                        'salario_max' => $vaga->salario_max,
+                        'empresa_id' => $vaga->empresa_id,
+                        'ativo' => (bool)$vaga->ativo,
+                        'ramo' => [
+                            'id' => $vaga->ramo->id,
+                            'nome' => $vaga->ramo->nome,
+                            'descricao' => $vaga->ramo->descricao,
+                        ],
+                    ];
+                });
+
+                return response()->json($vagas);
+            } else {
+                return response()->json(['mensagem' => 'Nenhuma vaga cadastrada.'], 204);
+            }
         }
     }
+
 
     public function store(Request $request)
 {
